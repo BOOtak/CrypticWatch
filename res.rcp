@@ -1,0 +1,3 @@
+#include "res.h"
+
+STRING ID WatchAppSignatureString "Wrist_PDA_Watch_App"
