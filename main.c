@@ -133,6 +133,21 @@ void app_handle_event(EventPtr event) {
       draw_time();
       break;
     }
+    case keyDownEvent: {
+      if ((event->data.keyDown.chr == vchrThumbWheelBack) ||
+          (event->data.keyDown.chr == vchrThumbWheelPush)) {
+        // Translate the Back and Enter keys to an open launcher event.
+        EventType newEvent;
+        newEvent = *event;
+        newEvent.eType = ctlSelectEvent;
+        newEvent.tapCount = 1;
+        newEvent.eType = keyDownEvent;
+        newEvent.data.keyDown.chr = launchChr;
+        newEvent.data.keyDown.modifiers = commandKeyMask;
+        EvtAddEventToQueue(&newEvent);
+        break;
+      }
+    }
   }
 }
 
@@ -157,6 +172,18 @@ UInt32 PilotMain(UInt16 cmd, void* cmdPBP, UInt16 launchFlags) {
     // Launch application in watch mode
     case wpdaAppLaunchWatchDrawTime: {
       draw_time();
+      break;
+    }
+    case sysAppLaunchCmdNotify: {
+      SysNotifyParamType* pNotify = (SysNotifyParamType*)cmdPBP;
+      if ((pNotify->notifyType == fossilNotifyWatchModeWakeup) /*&&
+          (pNotify->broadcaster == WPdaCreator)*/) {
+        // Exit when receive this notification.
+        EventType Event;
+        MemSet(&Event, sizeof(Event), 0);
+        Event.eType = appStopEvent;
+        EvtAddEventToQueue(&Event);
+      }
       break;
     }
   }
