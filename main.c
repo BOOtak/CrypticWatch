@@ -14,18 +14,16 @@
 // All code from here to end of file should use no global variables
 #pragma warn_a5_access on
 
-#define NUM_DIGITS 10
+#define FEATURE_CREATOR 'Leyf'
+#define FEATURE_GLOBAL_DATA_POINTER 'CW'
 
 typedef struct {
-  int size;
-  RectangleType* rect;
+  RectangleType rect[2];
 } ShapeType;
 
-#define ALLOC_SHAPE(SHAPE, SIZE)                          \
-  {                                                       \
-    SHAPE.size = SIZE;                                    \
-    SHAPE.rect = MemPtrNew(sizeof(RectangleType) * SIZE); \
-  }
+typedef struct {
+  ShapeType shapes[10];
+} WatchGlobalsType;
 
 #define FILL_RECT(RECT, X, Y, W, H) \
   {                                 \
@@ -37,60 +35,59 @@ typedef struct {
 
 /**
  * @brief Initialize digit shapes.
- * @return Pointer to array of the digit shapes.
+ * @return Pointer to array of the digit shapes on success, NULL otherwise.
  */
 MemPtr fill_digit_shapes() {
-  ShapeType* shapes = MemPtrNew(NUM_DIGITS * sizeof(ShapeType));
-  ALLOC_SHAPE(shapes[0], 1);
-  FILL_RECT(shapes[0].rect[0], 1, 1, 2, 3);
-  ALLOC_SHAPE(shapes[1], 1);
-  FILL_RECT(shapes[1].rect[0], 0, 0, 3, 5);
-  ALLOC_SHAPE(shapes[2], 2);
-  FILL_RECT(shapes[2].rect[0], 0, 1, 3, 1);
-  FILL_RECT(shapes[2].rect[1], 2, 3, 3, 1);
-  ALLOC_SHAPE(shapes[3], 2);
-  FILL_RECT(shapes[3].rect[0], 0, 1, 3, 1);
-  FILL_RECT(shapes[3].rect[1], 0, 3, 3, 1);
-  ALLOC_SHAPE(shapes[4], 2);
-  FILL_RECT(shapes[4].rect[0], 1, 0, 2, 2);
-  FILL_RECT(shapes[4].rect[1], 0, 3, 3, 2);
-  ALLOC_SHAPE(shapes[5], 2);
-  FILL_RECT(shapes[5].rect[0], 2, 1, 3, 1);
-  FILL_RECT(shapes[5].rect[1], 0, 3, 3, 1);
-  ALLOC_SHAPE(shapes[6], 2);
-  FILL_RECT(shapes[6].rect[0], 2, 1, 3, 1);
-  FILL_RECT(shapes[6].rect[1], 2, 3, 2, 1);
-  ALLOC_SHAPE(shapes[7], 1);
-  FILL_RECT(shapes[7].rect[0], 0, 1, 3, 4);
-  ALLOC_SHAPE(shapes[8], 2);
-  FILL_RECT(shapes[8].rect[0], 1, 1, 2, 1);
-  FILL_RECT(shapes[8].rect[1], 1, 3, 2, 1);
-  ALLOC_SHAPE(shapes[9], 2);
-  FILL_RECT(shapes[9].rect[0], 1, 1, 2, 1);
-  FILL_RECT(shapes[9].rect[1], 0, 3, 3, 1);
-  return shapes;
-}
+  WatchGlobalsType* gP;
+  ShapeType* shapes;
 
-int free_digit_shapes(ShapeType* shapes) {
-  int i = 0;
-  int res = 0;
-  for (i; i < NUM_DIGITS; ++i) {
-    if (MemPtrFree(shapes[i].rect) != 0) {
-      return -1;
+  // Check if we have already allocated global memory
+  gP = NULL;
+  if (FtrGet(FEATURE_CREATOR, FEATURE_GLOBAL_DATA_POINTER, (UInt32*) &gP) == 0) {
+    if (gP != NULL) {
+      return gP;
     }
   }
 
-  if (MemPtrFree(shapes) != 0) {
-    return -1;
+  if (FtrPtrNew(FEATURE_CREATOR, FEATURE_GLOBAL_DATA_POINTER, sizeof(WatchGlobalsType), (void**) &gP) == 0) {
+    int res;
+    WatchGlobalsType* data = MemPtrNew(sizeof(WatchGlobalsType));
+    shapes = data->shapes;
+    FILL_RECT(shapes[0].rect[0], 1, 1, 2, 3)
+    FILL_RECT(shapes[0].rect[1], 1, 1, 2, 3)
+    FILL_RECT(shapes[1].rect[0], 0, 0, 3, 5)
+    FILL_RECT(shapes[1].rect[1], 0, 0, 3, 5)
+    FILL_RECT(shapes[2].rect[0], 0, 1, 3, 1)
+    FILL_RECT(shapes[2].rect[1], 2, 3, 3, 1)
+    FILL_RECT(shapes[3].rect[0], 0, 1, 3, 1)
+    FILL_RECT(shapes[3].rect[1], 0, 3, 3, 1)
+    FILL_RECT(shapes[4].rect[0], 1, 0, 2, 2)
+    FILL_RECT(shapes[4].rect[1], 0, 3, 3, 2)
+    FILL_RECT(shapes[5].rect[0], 2, 1, 3, 1)
+    FILL_RECT(shapes[5].rect[1], 0, 3, 3, 1)
+    FILL_RECT(shapes[6].rect[0], 2, 1, 3, 1)
+    FILL_RECT(shapes[6].rect[1], 2, 3, 2, 1)
+    FILL_RECT(shapes[7].rect[0], 0, 1, 3, 4)
+    FILL_RECT(shapes[7].rect[1], 0, 1, 3, 4)
+    FILL_RECT(shapes[8].rect[0], 1, 1, 2, 1)
+    FILL_RECT(shapes[8].rect[1], 1, 3, 2, 1)
+    FILL_RECT(shapes[9].rect[0], 1, 1, 2, 1)
+    FILL_RECT(shapes[9].rect[1], 0, 3, 3, 1)
+
+    res = DmWrite(gP, 0, data, sizeof(WatchGlobalsType));
+    MemPtrFree(data);
+    if (res == 0) {
+      return gP;
+    }
   }
 
-  return 0;
+  return NULL;
 }
 
 void draw_shape(ShapeType* shape, UInt16 scale, UInt16 x, UInt16 y) {
   RectangleType buf;
   int i = 0;
-  for (i; i < shape->size; ++i) {
+  for (; i < 2; ++i) {
     MemMove(&buf, &(shape->rect[i]), sizeof(RectangleType));
     buf.topLeft.x *= scale;
     buf.topLeft.y *= scale;
@@ -105,8 +102,7 @@ void draw_shape(ShapeType* shape, UInt16 scale, UInt16 x, UInt16 y) {
 void draw_time() {
   DateTimeType dt;
   UInt8 hi_hour, lo_hour, hi_minute, lo_minute;
-  IndexedColorType foreColor;
-  ShapeType* shapes;
+  WatchGlobalsType* gP;
   UInt32 seconds = TimGetSeconds();
   TimSecondsToDateTime(seconds, &dt);
   hi_hour = dt.hour / 10;
@@ -114,17 +110,17 @@ void draw_time() {
   hi_minute = dt.minute / 10;
   lo_minute = dt.minute % 10;
 
-  // TODO: store this data in database instead of allocating it each time.
-  shapes = fill_digit_shapes();
-
   WinEraseWindow();
+  gP = fill_digit_shapes();
 
-  draw_shape(&shapes[hi_hour], 16, 0, 0);
-  draw_shape(&shapes[lo_hour], 16, 80, 0);
-  draw_shape(&shapes[hi_minute], 16, 0, 80);
-  draw_shape(&shapes[lo_minute], 16, 80, 80);
+  if (gP == NULL) {
+    return;
+  }
 
-  free_digit_shapes(shapes);
+  draw_shape(&(gP->shapes[hi_hour]), 16, 0, 0);
+  draw_shape(&(gP->shapes[lo_hour]), 16, 80, 0);
+  draw_shape(&(gP->shapes[hi_minute]), 16, 0, 80);
+  draw_shape(&(gP->shapes[lo_minute]), 16, 80, 80);
 }
 
 void app_handle_event(EventPtr event) {
@@ -134,8 +130,7 @@ void app_handle_event(EventPtr event) {
       break;
     }
     case keyDownEvent: {
-      if ((event->data.keyDown.chr == vchrThumbWheelBack) ||
-          (event->data.keyDown.chr == vchrThumbWheelPush)) {
+      if ((event->data.keyDown.chr == vchrThumbWheelBack) || (event->data.keyDown.chr == vchrThumbWheelPush)) {
         // Translate the Back and Enter keys to an open launcher event.
         EventType newEvent;
         newEvent = *event;
@@ -145,8 +140,8 @@ void app_handle_event(EventPtr event) {
         newEvent.data.keyDown.chr = launchChr;
         newEvent.data.keyDown.modifiers = commandKeyMask;
         EvtAddEventToQueue(&newEvent);
-        break;
       }
+      break;
     }
   }
 }
@@ -175,9 +170,8 @@ UInt32 PilotMain(UInt16 cmd, void* cmdPBP, UInt16 launchFlags) {
       break;
     }
     case sysAppLaunchCmdNotify: {
-      SysNotifyParamType* pNotify = (SysNotifyParamType*)cmdPBP;
-      if ((pNotify->notifyType == fossilNotifyWatchModeWakeup) /*&&
-          (pNotify->broadcaster == WPdaCreator)*/) {
+      SysNotifyParamType* pNotify = (SysNotifyParamType*) cmdPBP;
+      if (pNotify->notifyType == fossilNotifyWatchModeWakeup) {
         // Exit when receive this notification.
         EventType Event;
         MemSet(&Event, sizeof(Event), 0);
