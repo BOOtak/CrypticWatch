@@ -1,4 +1,2 @@
-*.prc
-*.bin
-*.o
-CrypticWatch
+cmake-build-*/
+.idea/
