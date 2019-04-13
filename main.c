@@ -161,6 +161,7 @@ UInt32 PilotMain(UInt16 cmd, void* cmdPBP, UInt16 launchFlags) {
   switch (cmd) {
     // Normal application launch
     case sysAppLaunchCmdNormalLaunch: {
+      draw_time();
       event_loop();
       break;
     }
