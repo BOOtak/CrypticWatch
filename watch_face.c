@@ -14,7 +14,7 @@ void WfGetDataPtr(WatchFaceType* watchFace, void** data, UInt32* size) {
   *data = watchFace->internal;
 }
 
-void WfFree(WatchFaceType* watchFace) {
+void WfDestroy(WatchFaceType* watchFace) {
   watchFace->Free(watchFace->internal);
 }
 
