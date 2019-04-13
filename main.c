@@ -5,7 +5,9 @@
 #include "HAL.h"
 
 #include "WristPDA.h"
+#include "block_watch_face.h"
 #include "res.h"
+#include "watch_face.h"
 
 // NOTE: This program uses *NO* global variables!  Do not introduce any!
 //       This program supports custom launch codes and is launched in
@@ -17,110 +19,60 @@
 #define FEATURE_CREATOR 'Leyf'
 #define FEATURE_GLOBAL_DATA_POINTER 'CW'
 
-typedef struct {
-  RectangleType rect[2];
-} ShapeType;
-
-typedef struct {
-  ShapeType shapes[10];
-} WatchGlobalsType;
-
-#define FILL_RECT(RECT, X, Y, W, H) \
-  {                                 \
-    RECT.topLeft.x = X;             \
-    RECT.topLeft.y = Y;             \
-    RECT.extent.x = W;              \
-    RECT.extent.y = H;              \
-  }
-
 /**
  * @brief Initialize digit shapes.
  * @return Pointer to array of the digit shapes on success, NULL otherwise.
  */
-MemPtr fill_digit_shapes() {
-  WatchGlobalsType* gP;
-  ShapeType* shapes;
+Err init_watch_face(WatchFaceType* watchFace) {
+  void* watch_raw;
+  UInt32 watch_size;
+  Err res;
 
   // Check if we have already allocated global memory
-  gP = NULL;
-  if (FtrGet(FEATURE_CREATOR, FEATURE_GLOBAL_DATA_POINTER, (UInt32*) &gP) == 0) {
+  MemPtr gP = NULL;
+  if (FtrGet(FEATURE_CREATOR, FEATURE_GLOBAL_DATA_POINTER, (UInt32*) &gP) ==
+      0) {
     if (gP != NULL) {
-      return gP;
+      // TODO: check if this data is compatible with the current watch face
+      return WfCreateFromRaw(watchFace, gP);
     }
   }
 
-  if (FtrPtrNew(FEATURE_CREATOR, FEATURE_GLOBAL_DATA_POINTER, sizeof(WatchGlobalsType), (void**) &gP) == 0) {
-    int res;
-    WatchGlobalsType* data = MemPtrNew(sizeof(WatchGlobalsType));
-    shapes = data->shapes;
-    FILL_RECT(shapes[0].rect[0], 1, 1, 2, 3)
-    FILL_RECT(shapes[0].rect[1], 1, 1, 2, 3)
-    FILL_RECT(shapes[1].rect[0], 0, 0, 3, 5)
-    FILL_RECT(shapes[1].rect[1], 0, 0, 3, 5)
-    FILL_RECT(shapes[2].rect[0], 0, 1, 3, 1)
-    FILL_RECT(shapes[2].rect[1], 2, 3, 3, 1)
-    FILL_RECT(shapes[3].rect[0], 0, 1, 3, 1)
-    FILL_RECT(shapes[3].rect[1], 0, 3, 3, 1)
-    FILL_RECT(shapes[4].rect[0], 1, 0, 2, 2)
-    FILL_RECT(shapes[4].rect[1], 0, 3, 3, 2)
-    FILL_RECT(shapes[5].rect[0], 2, 1, 3, 1)
-    FILL_RECT(shapes[5].rect[1], 0, 3, 3, 1)
-    FILL_RECT(shapes[6].rect[0], 2, 1, 3, 1)
-    FILL_RECT(shapes[6].rect[1], 2, 3, 2, 1)
-    FILL_RECT(shapes[7].rect[0], 0, 1, 3, 4)
-    FILL_RECT(shapes[7].rect[1], 0, 1, 3, 4)
-    FILL_RECT(shapes[8].rect[0], 1, 1, 2, 1)
-    FILL_RECT(shapes[8].rect[1], 1, 3, 2, 1)
-    FILL_RECT(shapes[9].rect[0], 1, 1, 2, 1)
-    FILL_RECT(shapes[9].rect[1], 0, 3, 3, 1)
+  WfInitWatchFace(watchFace);
+  WfGetDataPtr(watchFace, &watch_raw, &watch_size);
 
-    res = DmWrite(gP, 0, data, sizeof(WatchGlobalsType));
-    MemPtrFree(data);
+  if (FtrPtrNew(FEATURE_CREATOR, FEATURE_GLOBAL_DATA_POINTER, watch_size,
+                (void**) &gP) == 0) {
+    res = DmWrite(gP, 0, watch_raw, watch_size);
+    MemPtrFree(watch_raw);
     if (res == 0) {
-      return gP;
+      return WfCreateFromRaw(watchFace, gP);
     }
   }
 
-  return NULL;
-}
-
-void draw_shape(ShapeType* shape, UInt16 scale, UInt16 x, UInt16 y) {
-  RectangleType buf;
-  int i = 0;
-  for (; i < 2; ++i) {
-    MemMove(&buf, &(shape->rect[i]), sizeof(RectangleType));
-    buf.topLeft.x *= scale;
-    buf.topLeft.y *= scale;
-    buf.topLeft.x += x;
-    buf.topLeft.y += y;
-    buf.extent.x *= scale;
-    buf.extent.y *= scale;
-    WinDrawRectangle(&buf, 0);
-  }
+  return memErrorClass;
 }
 
 void draw_time() {
   DateTimeType dt;
-  UInt8 hi_hour, lo_hour, hi_minute, lo_minute;
-  WatchGlobalsType* gP;
+  WatchFaceType* watchFace;
+  Err init_success;
   UInt32 seconds = TimGetSeconds();
   TimSecondsToDateTime(seconds, &dt);
-  hi_hour = dt.hour / 10;
-  lo_hour = dt.hour % 10;
-  hi_minute = dt.minute / 10;
-  lo_minute = dt.minute % 10;
 
-  WinEraseWindow();
-  gP = fill_digit_shapes();
+  watchFace = createBlockWatchFace();
+  if (watchFace != NULL) {
+    init_success = init_watch_face(watchFace);
+    if (init_success == errNone) {
+      WfDrawTime(watchFace, &dt);
+    }
 
-  if (gP == NULL) {
+    MemPtrFree(watchFace);
     return;
   }
 
-  draw_shape(&(gP->shapes[hi_hour]), 16, 0, 0);
-  draw_shape(&(gP->shapes[lo_hour]), 16, 80, 0);
-  draw_shape(&(gP->shapes[hi_minute]), 16, 0, 80);
-  draw_shape(&(gP->shapes[lo_minute]), 16, 80, 80);
+  WinDrawLine(0, 0, 160, 160);
+  WinDrawLine(0, 160, 160, 0);
 }
 
 void app_handle_event(EventPtr event) {
@@ -130,7 +82,8 @@ void app_handle_event(EventPtr event) {
       break;
     }
     case keyDownEvent: {
-      if ((event->data.keyDown.chr == vchrThumbWheelBack) || (event->data.keyDown.chr == vchrThumbWheelPush)) {
+      if ((event->data.keyDown.chr == vchrThumbWheelBack) ||
+          (event->data.keyDown.chr == vchrThumbWheelPush)) {
         // Translate the Back and Enter keys to an open launcher event.
         EventType newEvent;
         newEvent = *event;
